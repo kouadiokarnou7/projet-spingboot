@@ -10,26 +10,21 @@ import jakarta.persistence.Table;
 @Table(name = "employe")
 public class Employe {
 
-    @Id
+  @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer matricule;
+    private Long id; // La VRAIE clé primaire (auto-incrémentée)
 
+    private Integer matricule; // Ton identifiant métier (celui que tu tapes : 300)
     private String nom;
 
-    // Getters et setters
-    public Integer getmatricule() {
-        return matricule;
-    }
+    // Getters et setters corrigés
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setMatricule(Integer matricule) {
-        this.matricule = matricule;
-    }
+    public Integer getMatricule() { return matricule; }
+    public void setMatricule(Integer matricule) { this.matricule = matricule; }
 
-    public String getNom() {
-        return nom;
-    }
-
-    public void setNom(String nom) {
-        this.nom = nom;
-    }
+    public String getNom() { return nom; }
+    public void setNom(String nom) { this.nom = nom; }
+    
 }

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title>Liste employé</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+    <style>
+        /* Animation d'apparition pour les lignes */
+        tr {
+            animation: fadeIn 0.4s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-800">
+
+    <!-- Navigation -->
+    <nav class="bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm border-b border-slate-200 px-8 py-4 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="bg-indigo-600 p-2 rounded-lg shadow-indigo-200 shadow-md">
+                <i class="fa-solid fa-users-gear text-white text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-slate-800 tracking-tight">
+                    Gestion <span class="text-indigo-600" th:text="${#authentication.name}">Utilisateur</span>
+                </h1>
+                <p class="text-xs text-slate-400 font-medium">ACCÈS EMPLOYÉ</p>
+            </div>
+        </div>
+        
+        <form th:action="@{/logout}" method="post">
+            <button type="submit" class="flex items-center gap-2 px-4 py-2 rounded-full bg-red-50 text-red-600 text-sm font-semibold hover:bg-red-100 transition-all border border-transparent hover:border-red-200">
+                <i class="fa-solid fa-power-off"></i>
+                <span>Déconnexion</span>
+            </button>
+        </form>
+    </nav>
+
+    <main class="max-w-4xl mx-auto mt-12 px-6 pb-12">
+        <div class="mb-10 text-center">
+            <h2 class="text-4xl font-extrabold text-slate-900 mb-2 tracking-tight">Annuaire employés</h2>
+            <p class="text-slate-500 mb-8 font-medium">Consultez l'effectif de l'entreprise.</p>
+
+            <!-- Barre de recherche -->
+            <div class="max-w-md mx-auto relative group">
+                <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors text-lg z-10"></i>
+                <!-- Pas d'action th:action ici, on gère via JS -->
+                <input type="text" id="search-input" placeholder="Rechercher un nom ou matricule..." 
+                       class="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-slate-200 bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all shadow-sm text-lg" />
+            </div>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-slate-50/80 border-b border-slate-100">
+                        <th class="px-8 py-5 text-sm font-bold text-slate-400 uppercase tracking-widest">Matricule</th>
+                        <th class="px-8 py-5 text-sm font-bold text-slate-400 uppercase tracking-widest">Identité</th>
+                    </tr>
+                </thead>
+                <!-- Le tbody sera rempli par JavaScript -->
+                <tbody id="employesTableBody" class="divide-y divide-slate-50">
+                    <!-- État de chargement initial -->
+                    <tr>
+                        <td colspan="2" class="px-8 py-12 text-center">
+                            <i class="fa-solid fa-circle-notch fa-spin text-indigo-500 text-3xl"></i>
+                            <p class="mt-2 text-slate-400 text-sm">Chargement de l'annuaire...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <!-- État vide (caché par défaut) -->
+            <div id="empty-state" class="hidden p-10 text-center">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 mb-4">
+                    <i class="fa-solid fa-user-slash text-slate-300 text-2xl"></i>
+                </div>
+                <p class="text-slate-600 font-medium">Aucun employé trouvé.</p>
+            </div>
+        </div>
+
+        <p class="mt-12 text-center text-slate-400 text-sm">
+            © 2026 Système de Gestion RH • Portail Employé
+        </p>
+    </main>
+
+    <script>
+        // Variable globale pour stocker la liste complète
+        let allEmployes = [];
+
+        // Au chargement de la page
+        document.addEventListener("DOMContentLoaded", () => {
+            loadEmployes();
+        });
+
+        // 1. Récupérer les données via l'API Spring Boot
+        async function loadEmployes() {
+            try {
+                const response = await fetch("/api/employes");
+                if (!response.ok) throw new Error("Erreur réseau");
+                
+                allEmployes = await response.json();
+                renderTable(allEmployes);
+            } catch (error) {
+                console.error("Impossible de charger les employés :", error);
+                document.getElementById("employesTableBody").innerHTML = `
+                    <tr>
+                        <td colspan="2" class="text-center py-8 text-red-500 font-medium">
+                            Erreur de connexion au serveur.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // 2. Fonction d'affichage du tableau
+        function renderTable(data) {
+            const tbody = document.getElementById("employesTableBody");
+            const emptyState = document.getElementById("empty-state");
+            
+            tbody.innerHTML = ""; // Nettoyer le tableau
+
+            if (data.length === 0) {
+                emptyState.classList.remove("hidden");
+                return;
+            }
+            emptyState.classList.add("hidden");
+
+            data.forEach(emp => {
+                // Sécurité contre les valeurs null
+                const matricule = emp.matricule || "N/A";
+                const nom = emp.nom || "Inconnu";
+                const initial = nom.charAt(0).toUpperCase();
+
+                const tr = document.createElement("tr");
+                tr.className = "hover:bg-slate-50/80 transition-all duration-200 group border-b border-slate-50 last:border-0";
+                
+                tr.innerHTML = `
+                    <td class="px-8 py-6">
+                        <span class="inline-flex items-center px-3 py-1 rounded-md bg-indigo-50 text-indigo-700 font-mono text-sm font-bold border border-indigo-100 shadow-sm">
+                            ${matricule}
+                        </span>
+                    </td>
+                    <td class="px-8 py-6">
+                        <div class="flex items-center gap-4">
+                            <!-- Avatar avec dégradé bleu/indigo -->
+                            <div class="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold shadow-md shadow-indigo-200 ring-2 ring-white">
+                                ${initial}
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-slate-900 font-bold text-base">${nom}</span>
+                                <div class="flex items-center gap-1.5 mt-1">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-green-500"></span>
+                                    <span class="text-xs text-slate-400 font-medium tracking-wide">ACTIF</span>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 3. Gestion de la recherche (Input event)
+        document.getElementById("search-input").addEventListener("input", function (e) {
+            const query = e.target.value.toLowerCase().trim();
+            
+            // Filtrer les données en mémoire (Recherche côté client très rapide)
+            const filtered = allEmployes.filter(emp => 
+                (emp.nom && emp.nom.toLowerCase().includes(query)) || 
+                (emp.matricule && emp.matricule.toString().toLowerCase().includes(query))
+            );
+            
+            renderTable(filtered);
+        });
+    </script>
+</body>
+</html>
