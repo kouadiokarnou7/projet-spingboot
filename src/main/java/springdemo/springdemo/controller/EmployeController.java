@@ -39,7 +39,7 @@ public class EmployeController {
         return employeService.findByMatricule(matricule);
     }
 
-    @PostMapping("/create")
+    @PostMapping
     public Employe create(@RequestBody Employe employe) {
         return employeService.save(employe);
     }

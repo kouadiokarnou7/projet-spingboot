@@ -1,10 +1,11 @@
+
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8" />
     <title>Annuaire des employés</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com  "></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css  " rel="stylesheet" />
     <style>
         /* Animation d'apparition pour les lignes */
         tr {
@@ -56,6 +57,45 @@
     </nav>
 
     <main class="max-w-7xl mx-auto mt-12 px-6 pb-12">
+        <!-- Statistiques rapides -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm font-medium mb-1">Total Employés</p>
+                        <p id="stat-total" class="text-3xl font-bold text-slate-800">0</p>
+                    </div>
+                    <div class="bg-indigo-50 p-3 rounded-xl">
+                        <i class="fa-solid fa-users text-indigo-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm font-medium mb-1">Départements</p>
+                        <p id="stat-departments" class="text-3xl font-bold text-slate-800">0</p>
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-xl">
+                        <i class="fa-solid fa-building text-green-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm font-medium mb-1">Fonctions</p>
+                        <p id="stat-functions" class="text-3xl font-bold text-slate-800">0</p>
+                    </div>
+                    <div class="bg-purple-50 p-3 rounded-xl">
+                        <i class="fa-solid fa-briefcase text-purple-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="mb-10 text-center">
             <h2 class="text-4xl font-extrabold text-slate-900 mb-2 tracking-tight">Annuaire des employés</h2>
             <p class="text-slate-500 mb-8 font-medium">Consultez l'effectif de l'entreprise par nom ou département.</p>
@@ -117,45 +157,6 @@
                 </div>
                 <p class="text-slate-600 font-bold text-lg mb-1">Aucun employé trouvé</p>
                 <p class="text-slate-400 text-sm">Essayez de modifier vos critères de recherche</p>
-            </div>
-        </div>
-
-        <!-- Statistiques rapides -->
-        <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-slate-400 text-sm font-medium mb-1">Total Employés</p>
-                        <p id="stat-total" class="text-3xl font-bold text-slate-800">0</p>
-                    </div>
-                    <div class="bg-indigo-50 p-3 rounded-xl">
-                        <i class="fa-solid fa-users text-indigo-600 text-2xl"></i>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-slate-400 text-sm font-medium mb-1">Départements</p>
-                        <p id="stat-departments" class="text-3xl font-bold text-slate-800">0</p>
-                    </div>
-                    <div class="bg-green-50 p-3 rounded-xl">
-                        <i class="fa-solid fa-building text-green-600 text-2xl"></i>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-slate-400 text-sm font-medium mb-1">Fonctions</p>
-                        <p id="stat-functions" class="text-3xl font-bold text-slate-800">0</p>
-                    </div>
-                    <div class="bg-purple-50 p-3 rounded-xl">
-                        <i class="fa-solid fa-briefcase text-purple-600 text-2xl"></i>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -374,6 +375,7 @@
                 });
                 
                 renderTable(filtered);
+                updateStatistics(filtered); // Mise à jour dynamique des stats
             }, 150); // Délai de 150ms
         });
 
