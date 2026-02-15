@@ -74,7 +74,7 @@
             <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-slate-400 text-sm font-medium mb-1">Départements</p>
+                        <p class="text-slate-400 text-sm font-medium mb-1">Départements (actif)</p>
                         <p id="stat-departments" class="text-3xl font-bold text-slate-800">0</p>
                     </div>
                     <div class="bg-green-50 p-3 rounded-xl">
@@ -274,8 +274,9 @@
                 
                 // Nom complet
                 const fullName = `${prenom} ${nom}`.trim() || "Inconnu";
-                const initial = (prenom || nom || "?").charAt(0).toUpperCase();
-                
+                //const initial = (prenom || nom || "?").charAt(0).toUpperCase();
+                const initials = ((prenom ? prenom.charAt(0) : "N") + (nom ? nom.charAt(0) : "A")).toUpperCase();
+
                 // Couleur du département
                 const deptColor = getDepartmentColor(departement);
 
@@ -293,7 +294,7 @@
                         <div class="flex items-center gap-4">
                             <!-- Avatar avec initiale -->
                             <div class="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-lg shadow-indigo-200/50 ring-2 ring-white group-hover:scale-110 transition-transform">
-                                ${initial}
+                                ${initials}
                             </div>
                             <div class="flex flex-col">
                                 <span class="text-slate-900 font-bold text-base leading-tight">${fullName}</span>

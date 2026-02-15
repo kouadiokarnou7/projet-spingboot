@@ -385,7 +385,8 @@
                 const fonction = emp.fonction || 'Non spécifié';
                 const departement = emp.departement?.nom || 'Non affecté';
                 const fullName = `${prenom} ${nom}`.trim() || 'Inconnu';
-                const initial = (prenom || nom || '?').charAt(0).toUpperCase();
+                //const initial = (prenom || nom || '?').charAt(0).toUpperCase();
+                const initials = ((prenom ? prenom.charAt(0) : "N") + (nom ? nom.charAt(0) : "A")).toUpperCase();
                 const deptColor = getDepartmentColor(departement);
 
                 let actionsHtml = '';
@@ -417,7 +418,7 @@
                     <td class="px-8 py-6">
                         <div class="flex items-center gap-4">
                             <div class="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-lg shadow-indigo-200/50 ring-2 ring-white group-hover:scale-110 transition-transform">
-                                ${initial}
+                                ${initials}
                             </div>
                             <div class="flex flex-col">
                                 <span class="text-slate-900 font-bold text-base leading-tight">${fullName}</span>
