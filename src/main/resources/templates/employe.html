@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8" />
-    <title>Liste employé</title>
+    <title>Annuaire des employés</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
     <style>
@@ -13,6 +13,21 @@
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Animation pour le badge département */
+        @keyframes shimmer {
+            0% { background-position: -200% center; }
+            100% { background-position: 200% center; }
+        }
+        
+        .department-badge {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            background-size: 200% 100%;
+        }
+        
+        .department-badge:hover {
+            animation: shimmer 2s infinite;
         }
     </style>
 </head>
@@ -40,46 +55,107 @@
         </form>
     </nav>
 
-    <main class="max-w-4xl mx-auto mt-12 px-6 pb-12">
+    <main class="max-w-7xl mx-auto mt-12 px-6 pb-12">
         <div class="mb-10 text-center">
-            <h2 class="text-4xl font-extrabold text-slate-900 mb-2 tracking-tight">Annuaire employés</h2>
-            <p class="text-slate-500 mb-8 font-medium">Consultez l'effectif de l'entreprise.</p>
+            <h2 class="text-4xl font-extrabold text-slate-900 mb-2 tracking-tight">Annuaire des employés</h2>
+            <p class="text-slate-500 mb-8 font-medium">Consultez l'effectif de l'entreprise par nom ou département.</p>
 
-            <!-- Barre de recherche -->
-            <div class="max-w-md mx-auto relative group">
-                <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors text-lg z-10"></i>
-                <!-- Pas d'action th:action ici, on gère via JS -->
-                <input type="text" id="search-input" placeholder="Rechercher un nom ou matricule..." 
-                       class="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-slate-200 bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all shadow-sm text-lg" />
+            <!-- Barre de recherche améliorée -->
+            <div class="max-w-2xl mx-auto">
+                <div class="relative group">
+                    <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors text-lg z-10"></i>
+                    <input type="text" 
+                           id="search-input" 
+                           placeholder="Rechercher par nom, prénom, matricule ou département..." 
+                           class="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-slate-200 bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all shadow-sm text-lg" />
+                </div>
+                
+                <!-- Compteur de résultats -->
+                <div class="mt-3 flex items-center justify-center gap-2 text-sm">
+                    <span class="text-slate-400">Résultats :</span>
+                    <span id="result-count" class="font-bold text-indigo-600">0</span>
+                    <span class="text-slate-400">employé(s)</span>
+                </div>
             </div>
         </div>
 
         <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
             <table class="w-full text-left">
                 <thead>
-                    <tr class="bg-slate-50/80 border-b border-slate-100">
-                        <th class="px-8 py-5 text-sm font-bold text-slate-400 uppercase tracking-widest">Matricule</th>
-                        <th class="px-8 py-5 text-sm font-bold text-slate-400 uppercase tracking-widest">Identité</th>
+                    <tr class="bg-gradient-to-r from-slate-50 to-slate-100/50 border-b border-slate-200">
+                        <th class="px-8 py-5 text-sm font-bold text-slate-500 uppercase tracking-widest">
+                            <i class="fa-solid fa-hashtag mr-2 text-slate-400"></i>Matricule
+                        </th>
+                        <th class="px-8 py-5 text-sm font-bold text-slate-500 uppercase tracking-widest">
+                            <i class="fa-solid fa-user mr-2 text-slate-400"></i>Identité
+                        </th>
+                        <th class="px-8 py-5 text-sm font-bold text-slate-500 uppercase tracking-widest">
+                            <i class="fa-solid fa-briefcase mr-2 text-slate-400"></i>Fonction
+                        </th>
+                        <th class="px-8 py-5 text-sm font-bold text-slate-500 uppercase tracking-widest">
+                            <i class="fa-solid fa-building mr-2 text-slate-400"></i>Département
+                        </th>
                     </tr>
                 </thead>
-                <!-- Le tbody sera rempli par JavaScript -->
                 <tbody id="employesTableBody" class="divide-y divide-slate-50">
                     <!-- État de chargement initial -->
                     <tr>
-                        <td colspan="2" class="px-8 py-12 text-center">
-                            <i class="fa-solid fa-circle-notch fa-spin text-indigo-500 text-3xl"></i>
-                            <p class="mt-2 text-slate-400 text-sm">Chargement de l'annuaire...</p>
+                        <td colspan="4" class="px-8 py-12 text-center">
+                            <div class="flex flex-col items-center gap-3">
+                                <i class="fa-solid fa-circle-notch fa-spin text-indigo-500 text-4xl"></i>
+                                <p class="text-slate-400 font-medium">Chargement de l'annuaire...</p>
+                            </div>
                         </td>
                     </tr>
                 </tbody>
             </table>
             
-            <!-- État vide (caché par défaut) -->
-            <div id="empty-state" class="hidden p-10 text-center">
-                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 mb-4">
-                    <i class="fa-solid fa-user-slash text-slate-300 text-2xl"></i>
+            <!-- État vide -->
+            <div id="empty-state" class="hidden p-12 text-center">
+                <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-50 mb-4">
+                    <i class="fa-solid fa-user-slash text-slate-300 text-3xl"></i>
                 </div>
-                <p class="text-slate-600 font-medium">Aucun employé trouvé.</p>
+                <p class="text-slate-600 font-bold text-lg mb-1">Aucun employé trouvé</p>
+                <p class="text-slate-400 text-sm">Essayez de modifier vos critères de recherche</p>
+            </div>
+        </div>
+
+        <!-- Statistiques rapides -->
+        <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm font-medium mb-1">Total Employés</p>
+                        <p id="stat-total" class="text-3xl font-bold text-slate-800">0</p>
+                    </div>
+                    <div class="bg-indigo-50 p-3 rounded-xl">
+                        <i class="fa-solid fa-users text-indigo-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm font-medium mb-1">Départements</p>
+                        <p id="stat-departments" class="text-3xl font-bold text-slate-800">0</p>
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-xl">
+                        <i class="fa-solid fa-building text-green-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm font-medium mb-1">Fonctions</p>
+                        <p id="stat-functions" class="text-3xl font-bold text-slate-800">0</p>
+                    </div>
+                    <div class="bg-purple-50 p-3 rounded-xl">
+                        <i class="fa-solid fa-briefcase text-purple-600 text-2xl"></i>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -92,6 +168,32 @@
         // Variable globale pour stocker la liste complète
         let allEmployes = [];
 
+        // Couleurs pour les départements (palette harmonieuse)
+        const departmentColors = [
+            { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+            { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
+            { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+            { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
+            { bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200' },
+            { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' },
+            { bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
+            { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' }
+        ];
+
+        // Mapper les départements aux couleurs
+        const departmentColorMap = new Map();
+
+        function getDepartmentColor(departmentName) {
+            if (!departmentName) return departmentColors[0];
+            
+            if (!departmentColorMap.has(departmentName)) {
+                const index = departmentColorMap.size % departmentColors.length;
+                departmentColorMap.set(departmentName, departmentColors[index]);
+            }
+            
+            return departmentColorMap.get(departmentName);
+        }
+
         // Au chargement de la page
         document.addEventListener("DOMContentLoaded", () => {
             loadEmployes();
@@ -101,16 +203,41 @@
         async function loadEmployes() {
             try {
                 const response = await fetch("/api/employes");
-                if (!response.ok) throw new Error("Erreur réseau");
+                
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP ${response.status}`);
+                }
+                
+                const contentType = response.headers.get("content-type");
+                if (!contentType?.includes("application/json")) {
+                    throw new Error("Format de réponse invalide");
+                }
                 
                 allEmployes = await response.json();
+                
+                if (!Array.isArray(allEmployes)) {
+                    console.warn('⚠️ Données invalides:', allEmployes);
+                    allEmployes = [];
+                }
+                
                 renderTable(allEmployes);
+                updateStatistics(allEmployes);
+                
             } catch (error) {
-                console.error("Impossible de charger les employés :", error);
+                console.error("❌ Impossible de charger les employés :", error);
                 document.getElementById("employesTableBody").innerHTML = `
                     <tr>
-                        <td colspan="2" class="text-center py-8 text-red-500 font-medium">
-                            Erreur de connexion au serveur.
+                        <td colspan="4" class="text-center py-12">
+                            <div class="flex flex-col items-center gap-3">
+                                <div class="bg-red-50 p-4 rounded-full">
+                                    <i class="fa-solid fa-exclamation-triangle text-red-500 text-3xl"></i>
+                                </div>
+                                <p class="text-red-600 font-bold text-lg">Erreur de connexion</p>
+                                <p class="text-slate-400 text-sm">Impossible de charger les données du serveur</p>
+                                <button onclick="loadEmployes()" class="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                                    <i class="fa-solid fa-refresh mr-2"></i>Réessayer
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -121,43 +248,74 @@
         function renderTable(data) {
             const tbody = document.getElementById("employesTableBody");
             const emptyState = document.getElementById("empty-state");
+            const resultCount = document.getElementById("result-count");
             
             tbody.innerHTML = ""; // Nettoyer le tableau
+
+            // Mettre à jour le compteur
+            resultCount.textContent = data.length;
 
             if (data.length === 0) {
                 emptyState.classList.remove("hidden");
                 return;
             }
+            
             emptyState.classList.add("hidden");
 
-            data.forEach(emp => {
-                // Sécurité contre les valeurs null
+            data.forEach((emp, index) => {
+                // Sécurité contre les valeurs null/undefined
                 const matricule = emp.matricule || "N/A";
-                const nom = emp.nom || "Inconnu";
-                const initial = nom.charAt(0).toUpperCase();
+                const nom = emp.nom || "";
+                const prenom = emp.prenom || "";
+                const fonction = emp.fonction || "Non spécifié";
+                const departement = emp.departement?.nom || "Non affecté";
+                
+                
+                // Nom complet
+                const fullName = `${prenom} ${nom}`.trim() || "Inconnu";
+                const initial = (prenom || nom || "?").charAt(0).toUpperCase();
+                
+                // Couleur du département
+                const deptColor = getDepartmentColor(departement);
 
                 const tr = document.createElement("tr");
-                tr.className = "hover:bg-slate-50/80 transition-all duration-200 group border-b border-slate-50 last:border-0";
+                tr.className = "hover:bg-gradient-to-r hover:from-slate-50/50 hover:to-transparent transition-all duration-200 group border-b border-slate-50 last:border-0";
+                tr.style.animationDelay = `${index * 0.05}s`;
                 
                 tr.innerHTML = `
                     <td class="px-8 py-6">
-                        <span class="inline-flex items-center px-3 py-1 rounded-md bg-indigo-50 text-indigo-700 font-mono text-sm font-bold border border-indigo-100 shadow-sm">
-                            ${matricule}
+                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg bg-slate-50 text-slate-700 font-mono text-sm font-bold border border-slate-200 shadow-sm group-hover:bg-indigo-50 group-hover:text-indigo-700 group-hover:border-indigo-200 transition-all">
+                            <i class="fa-solid fa-hashtag text-xs mr-1.5 opacity-50"></i>${matricule}
                         </span>
                     </td>
                     <td class="px-8 py-6">
                         <div class="flex items-center gap-4">
-                            <!-- Avatar avec dégradé bleu/indigo -->
-                            <div class="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold shadow-md shadow-indigo-200 ring-2 ring-white">
+                            <!-- Avatar avec initiale -->
+                            <div class="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-lg shadow-indigo-200/50 ring-2 ring-white group-hover:scale-110 transition-transform">
                                 ${initial}
                             </div>
                             <div class="flex flex-col">
-                                <span class="text-slate-900 font-bold text-base">${nom}</span>
+                                <span class="text-slate-900 font-bold text-base leading-tight">${fullName}</span>
                                 <div class="flex items-center gap-1.5 mt-1">
-                                    <span class="h-1.5 w-1.5 rounded-full bg-green-500"></span>
-                                    <span class="text-xs text-slate-400 font-medium tracking-wide">ACTIF</span>
+                                    <span class="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                                    <span class="text-xs text-slate-400 font-medium tracking-wide uppercase">Actif</span>
                                 </div>
                             </div>
+                        </div>
+                    </td>
+                    <td class="px-8 py-6">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-briefcase text-slate-400 text-sm"></i>
+                            <span class="text-slate-600 font-medium">${fonction}</span>
+                        </div>
+                    </td>
+                    <td class="px-8 py-6">
+                        <div class="inline-flex flex-col gap-1">
+                            <span class="department-badge inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ${deptColor.bg} ${deptColor.text} border ${deptColor.border} font-bold text-sm shadow-sm transition-all group-hover:scale-105">
+                                <i class="fa-solid fa-building text-xs"></i>
+                                <span>${departement}</span>
+                            </span>
+                          
                         </div>
                     </td>
                 `;
@@ -165,17 +323,75 @@
             });
         }
 
-        // 3. Gestion de la recherche (Input event)
+        // 3. Mise à jour des statistiques
+        function updateStatistics(data) {
+            // Total employés
+            document.getElementById("stat-total").textContent = data.length;
+            
+            // Nombre de départements uniques
+            const uniqueDepartments = new Set(
+                data
+                    .filter(emp => emp.departement?.nom)
+                    .map(emp => emp.departement.nom)
+            );
+            document.getElementById("stat-departments").textContent = uniqueDepartments.size;
+            
+            // Nombre de fonctions uniques
+            const uniqueFunctions = new Set(
+                data
+                    .filter(emp => emp.fonction)
+                    .map(emp => emp.fonction)
+            );
+            document.getElementById("stat-functions").textContent = uniqueFunctions.size;
+        }
+
+        // 4. Gestion de la recherche multi-critères (Input event avec debounce)
+        let searchTimeout;
+        
         document.getElementById("search-input").addEventListener("input", function (e) {
             const query = e.target.value.toLowerCase().trim();
             
-            // Filtrer les données en mémoire (Recherche côté client très rapide)
-            const filtered = allEmployes.filter(emp => 
-                (emp.nom && emp.nom.toLowerCase().includes(query)) || 
-                (emp.matricule && emp.matricule.toString().toLowerCase().includes(query))
-            );
+            // Debounce pour optimiser les performances
+            clearTimeout(searchTimeout);
             
-            renderTable(filtered);
+            searchTimeout = setTimeout(() => {
+                // Filtrer les données en mémoire
+                const filtered = allEmployes.filter(emp => {
+                    const searchableFields = [
+                        emp.nom,
+                        emp.prenom,
+                        emp.matricule?.toString(),
+                        emp.fonction,
+                        emp.departement?.nom,
+                        emp.departement?.numero?.toString(),
+                        `${emp.prenom} ${emp.nom}` // Nom complet
+                    ];
+                    
+                    // Recherche dans tous les champs
+                    return searchableFields.some(field => 
+                        field && field.toLowerCase().includes(query)
+                    );
+                });
+                
+                renderTable(filtered);
+            }, 150); // Délai de 150ms
+        });
+
+        // 5. Raccourci clavier : Focus sur la recherche avec Ctrl+K ou Cmd+K
+        document.addEventListener("keydown", (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+                e.preventDefault();
+                document.getElementById("search-input").focus();
+            }
+        });
+
+        // 6. Gestion des erreurs globales
+        window.addEventListener('error', (event) => {
+            console.error('❌ Erreur JavaScript:', event.error);
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('❌ Promise rejetée:', event.reason);
         });
     </script>
 </body>

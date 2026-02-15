@@ -34,6 +34,7 @@ class EmployeServiceImplTest {
     private Employe e2;
 
     @BeforeEach
+    /* 
     void setUp() {
         e1 = new Employe();
         e1.setMatricule(1);
@@ -43,6 +44,7 @@ class EmployeServiceImplTest {
         e2.setMatricule(2);
         e2.setNom("Bob");
     }
+        */
 
     @Test
     @DisplayName("findAll should return all employees")
