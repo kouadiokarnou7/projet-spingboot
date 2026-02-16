@@ -2,6 +2,7 @@ package springdemo.springdemo.controller;
 
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,7 +39,7 @@ public class EmployeController {
     public Employe findByMatricule(@PathVariable Integer matricule) {
         return employeService.findByMatricule(matricule);
     }
-
+    /* 
     @PostMapping
     public Employe create(@RequestBody Employe employe) {
         return employeService.save(employe);
@@ -47,6 +48,22 @@ public class EmployeController {
     @PutMapping("/{id}")
     public Employe update(@PathVariable Long id, @RequestBody Employe employe) {
         return employeService.update(id, employe);
+    } */
+        // --- AJOUT (CREATE) ---
+    @PostMapping
+    public ResponseEntity<Employe> create(@RequestBody Employe employe) {
+        // On appelle save, qui vérifie que le matricule n'existe pas déjà
+        Employe nouveauEmploye = employeService.save(employe);
+        return ResponseEntity.ok(nouveauEmploye);
+    }
+
+    // --- MODIFICATION (UPDATE) ---
+    @PutMapping("/{id}")
+    public ResponseEntity<Employe> update(@PathVariable Long id, @RequestBody Employe employe) {
+        // IMPORTANT : On appelle update, PAS save !
+        // La méthode update en interne gère le fait que l'employé existe déjà
+        Employe employeModifie = employeService.update(id, employe);
+        return ResponseEntity.ok(employeModifie);
     }
 
     @DeleteMapping("/{id}")

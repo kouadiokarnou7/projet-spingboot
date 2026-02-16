@@ -1,12 +1,12 @@
 package springdemo.springdemo.service;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import springdemo.springdemo.model.Employe;
 import springdemo.springdemo.repository.EmployeRepository;
-
-
-import java.util.List;
 
 @Service
 @Transactional
@@ -71,22 +71,30 @@ public class EmployeServiceImpl implements EmployeService {
     }
 
     // ACCÈS : ADMIN UNIQUEMENT
+    //
     @Override
     public Employe update(Long id, Employe employe) {
-        Employe existing = findOne(id);
+    Employe existing = findOne(id);
 
-        // Mise à jour de tous les champs selon le diagramme
-        existing.setNom(employe.getNom());
-        existing.setPrenom(employe.getPrenom());
-        existing.setFonction(employe.getFonction());
+    existing.setNom(employe.getNom());
+    existing.setPrenom(employe.getPrenom());
+    existing.setFonction(employe.getFonction());
+
+    // Ne vérifier l'unicité du matricule que si c'est différent
+    if (!existing.getMatricule().equals(employe.getMatricule())) {
+        if (employeRepository.existsByMatricule(employe.getMatricule())) {
+            throw new RuntimeException("Le matricule " + employe.getMatricule() + " est déjà utilisé.");
+        }
         existing.setMatricule(employe.getMatricule());
-        
-        // Mise à jour des relations (Clés étrangères)
-        existing.setDepartement(employe.getDepartement());
-        existing.setEntreprise(employe.getEntreprise());
-
-        return employeRepository.save(existing);
     }
+
+    existing.setDepartement(employe.getDepartement());
+    existing.setEntreprise(employe.getEntreprise());
+
+    return employeRepository.save(existing);
+}
+
+    //
 
     // ACCÈS : ADMIN UNIQUEMENT
     @Override

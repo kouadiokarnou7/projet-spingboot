@@ -24,6 +24,15 @@
         .department-badge:hover { animation: shimmer 2s infinite; }
         .action-btn { transition: all 0.2s ease; }
         .action-btn:hover { transform: translateY(-2px); }
+        
+        /* Animation pour le compteur de résultats */
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .search-counter {
+            animation: slideDown 0.3s ease-out;
+        }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-800">
@@ -123,13 +132,47 @@
             </div>
         </div>
 
+        <!-- ========== BARRE DE RECHERCHE AMÉLIORÉE - CORRIGÉE ========== -->
         <div class="mb-8">
-            <div class="relative group">
-                <i class="fa-solid fa-search absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors text-lg"></i>
-                <input type="text" 
-                       id="search-input" 
-                       placeholder="Rechercher par nom, prénom, matricule ou département..." 
-                       class="w-full pl-12 pr-4 py-4 rounded-2xl border-2 border-slate-200 bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all shadow-sm text-lg" />
+            <div class="bg-white rounded-2xl p-6 border-2 border-slate-200 shadow-md">
+                <!-- Champ de recherche principal avec conteneur relatif -->
+                <div class="relative mb-4">
+                    <input type="text" 
+                           id="search-input" 
+                           placeholder=" Rechercher par nom, prénom, matricule, fonction ou département..." 
+                           class="w-full pl-14 pr-12 py-4 rounded-xl border-2 border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all text-base font-medium" />
+                    <!-- Bouton clear -->
+                    <button id="clear-search" 
+                            class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition-colors hidden"
+                            onclick="clearSearch()">
+                        <i class="fa-solid fa-times-circle text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Compteur de résultats et filtres rapides -->
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <!-- Compteur de résultats -->
+                    <div id="search-results-info" class="search-counter flex items-center gap-2 text-sm">
+                        <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200">
+                            <i class="fa-solid fa-filter"></i>
+                            <span id="results-count">0</span> résultat(s)
+                        </span>
+                        <span id="search-query-display" class="text-slate-500 italic hidden">
+                            pour "<span id="current-query" class="font-semibold text-slate-700"></span>"
+                        </span>
+                    </div>
+
+                    <!-- Filtres rapides par département -->
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="filterByDepartment('')" 
+                                class="filter-dept-btn px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-300 transition-all active">
+                            <i class="fa-solid fa-globe mr-1"></i>Tous
+                        </button>
+                        <div id="department-filters" class="flex flex-wrap gap-2">
+                            <!-- Les filtres de département seront ajoutés dynamiquement ici -->
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -178,45 +221,110 @@
         </div>
     </main>
 
-    <!-- MODAL AJOUT/MODIF EMPLOYÉ -->
+    <!-- ========== MODAL AJOUT/MODIF EMPLOYÉ AMÉLIORÉ ========== -->
     <div id="modal-employe" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 id="modal-title" class="text-xl font-bold mb-4 text-gray-800">Nouvel Employé</h3>
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="modal-title" class="text-xl font-bold text-gray-800">
+                    <i class="fa-solid fa-user-plus mr-2 text-indigo-600"></i>
+                    <span id="modal-title-text">Nouvel Employé</span>
+                </h3>
+                <button onclick="toggleModal('modal-employe')" class="text-gray-400 hover:text-gray-600 transition">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- Indicateur de mode (Création/Modification) -->
+            <div id="edit-mode-indicator" class="hidden mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div class="flex items-center gap-2 text-amber-700">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    <span class="text-sm font-semibold">Mode modification - ID: <span id="current-edit-id" class="font-mono"></span></span>
+                </div>
+            </div>
+
             <form id="form-employe" class="space-y-4">
                 <input type="hidden" id="employe-id">
+                
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Matricule *</label>
-                    <input type="text" id="employe-matricule" required
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fa-solid fa-hashtag mr-1 text-gray-400"></i>
+                        Matricule *
+                    </label>
+                    <input type="text" 
+                           id="employe-matricule" 
+                           required
+                           placeholder="ertrez un nombre ex:01"
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                    <p class="text-xs text-gray-500 mt-1">Le matricule doit être unique</p>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fa-solid fa-user mr-1 text-gray-400"></i>
+                            Nom *
+                        </label>
+                        <input type="text" 
+                               id="employe-nom" 
+                               required
+                               placeholder="Nom de famille"
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fa-solid fa-user mr-1 text-gray-400"></i>
+                            Prénom *
+                        </label>
+                        <input type="text" 
+                               id="employe-prenom" 
+                               required
+                               placeholder="Prénom"
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fa-solid fa-briefcase mr-1 text-gray-400"></i>
+                        Fonction *
+                    </label>
+                    <input type="text" 
+                           id="employe-fonction" 
+                           required
+                           placeholder="Ex: Développeur, Manager, etc."
                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                 </div>
+                
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
-                    <input type="text" id="employe-nom" required
-                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Prénom *</label>
-                    <input type="text" id="employe-prenom" required
-                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Fonction *</label>
-                    <input type="text" id="employe-fonction" required
-                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Département *</label>
-                    <select id="employe-departement" required
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fa-solid fa-building mr-1 text-gray-400"></i>
+                        Département *
+                    </label>
+                    <select id="employe-departement" 
+                            required
                             class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                         <option value="">Sélectionnez un département</option>
                     </select>
                 </div>
-                <div class="flex space-x-3 pt-4">
+
+                <!-- Résumé des données avant enregistrement -->
+                <div id="form-summary" class="hidden p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p class="text-sm font-semibold text-blue-800 mb-2">
+                        <i class="fa-solid fa-info-circle mr-1"></i>Résumé des modifications :
+                    </p>
+                    <ul class="text-xs text-blue-700 space-y-1" id="summary-list">
+                        <!-- Sera rempli dynamiquement -->
+                    </ul>
+                </div>
+                
+                <div class="flex space-x-3 pt-4 border-t border-gray-200">
                     <button type="submit" 
-                            class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
-                        <i class="fa fa-save mr-2"></i>Enregistrer
+                            class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition shadow-lg hover:shadow-blue-200">
+                        <i class="fa fa-save mr-2"></i>
+                        <span id="submit-btn-text">Enregistrer</span>
                     </button>
-                    <button type="button" onclick="toggleModal('modal-employe')"
+                    <button type="button" 
+                            onclick="toggleModal('modal-employe')"
                             class="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-300 transition">
                         <i class="fa fa-times mr-2"></i>Annuler
                     </button>
@@ -282,6 +390,8 @@
         // ===== CACHE =====
         let allEmployes = [];
         let allDepartements = [];
+        let filteredEmployes = []; // Pour stocker les résultats filtrés
+        let currentDepartmentFilter = ''; // Filtre de département actif
 
         // ===== DÉTECTION DU RÔLE ADMIN =====
         const isAdmin = document.getElementById('admin-controls') !== null;
@@ -335,12 +445,14 @@
                 // Mise à jour des variables globales
                 allEmployes = empRes.status === 'fulfilled' ? empRes.value : [];
                 allDepartements = deptRes.status === 'fulfilled' ? deptRes.value : [];
+                filteredEmployes = allEmployes; // Initialiser avec tous les employés
 
                 console.log(`✅ ${allEmployes.length} employés, ${allDepartements.length} départements`);
 
                 renderTable(allEmployes);
                 updateStatistics();
                 loadDepartmentsIntoSelect();
+                createDepartmentFilters(); // Créer les filtres rapides
 
             } catch (error) {
                 console.error('❌ Erreur chargement:', error);
@@ -348,21 +460,53 @@
             }
         }
 
-        // ===== STATISTIQUES CORRIGÉES =====
+        // ===== STATISTIQUES =====
         function updateStatistics() {
-            // 1. Total Employés
             document.getElementById("stat-total").textContent = allEmployes.length;
-            
-            // 2. Total Départements (Basé sur la liste DB complète)
             document.getElementById("stat-departments").textContent = allDepartements.length;
             
-            // 3. Total Fonctions (Basé sur les employés existants)
             const uniqueFunctions = new Set(
                 allEmployes
                     .filter(emp => emp.fonction && emp.fonction.trim() !== '')
                     .map(emp => emp.fonction.trim())
             );
             document.getElementById("stat-functions").textContent = uniqueFunctions.size;
+        }
+
+        // ===== CRÉATION DES FILTRES DE DÉPARTEMENT =====
+        function createDepartmentFilters() {
+            const container = document.getElementById('department-filters');
+            container.innerHTML = '';
+            
+            allDepartements.forEach(dept => {
+                const color = getDepartmentColor(dept.nom);
+                const count = allEmployes.filter(emp => emp.departement?.id === dept.id).length;
+                
+                const btn = document.createElement('button');
+                btn.onclick = () => filterByDepartment(dept.nom);
+                btn.className = `filter-dept-btn px-3 py-1.5 text-xs font-bold rounded-lg ${color.bg} ${color.text} border ${color.border} hover:opacity-80 transition-all`;
+                btn.innerHTML = `<i class="fa-solid fa-building mr-1"></i>${dept.nom} (${count})`;
+                btn.dataset.department = dept.nom;
+                
+                container.appendChild(btn);
+            });
+        }
+
+        // ===== FILTRE PAR DÉPARTEMENT =====
+        function filterByDepartment(deptName) {
+            currentDepartmentFilter = deptName;
+            
+            // Mettre à jour l'apparence des boutons
+            document.querySelectorAll('.filter-dept-btn').forEach(btn => {
+                btn.classList.remove('active', 'ring-2', 'ring-offset-2');
+                if ((deptName === '' && btn.textContent.includes('Tous')) || 
+                    btn.dataset.department === deptName) {
+                    btn.classList.add('active', 'ring-2', 'ring-offset-2');
+                }
+            });
+            
+            // Appliquer le filtre
+            performSearch();
         }
 
         // ===== RENDU DU TABLEAU =====
@@ -374,9 +518,11 @@
 
             if (!data || data.length === 0) {
                 emptyState.classList.remove('hidden');
+                updateResultsCounter(0);
                 return;
             }
             emptyState.classList.add('hidden');
+            updateResultsCounter(data.length);
 
             data.forEach((emp, index) => {
                 const matricule = emp.matricule || 'N/A';
@@ -385,7 +531,6 @@
                 const fonction = emp.fonction || 'Non spécifié';
                 const departement = emp.departement?.nom || 'Non affecté';
                 const fullName = `${prenom} ${nom}`.trim() || 'Inconnu';
-                //const initial = (prenom || nom || '?').charAt(0).toUpperCase();
                 const initials = ((prenom ? prenom.charAt(0) : "N") + (nom ? nom.charAt(0) : "A")).toUpperCase();
                 const deptColor = getDepartmentColor(departement);
 
@@ -451,6 +596,23 @@
             });
         }
 
+        // ===== MISE À JOUR DU COMPTEUR DE RÉSULTATS =====
+        function updateResultsCounter(count) {
+            document.getElementById('results-count').textContent = count;
+            
+            const searchInput = document.getElementById('search-input');
+            const query = searchInput.value.trim();
+            const queryDisplay = document.getElementById('search-query-display');
+            const currentQuery = document.getElementById('current-query');
+            
+            if (query) {
+                queryDisplay.classList.remove('hidden');
+                currentQuery.textContent = query;
+            } else {
+                queryDisplay.classList.add('hidden');
+            }
+        }
+
         // ===== DÉPARTEMENTS DANS LE SELECT =====
         function loadDepartmentsIntoSelect() {
             const select = document.getElementById('employe-departement');
@@ -463,48 +625,53 @@
         }
 
         // ===== MODALES =====
-        function toggleModal(modalId) {
+        function toggleModal(modalId, skipReset = false) {
             const modal = document.getElementById(modalId);
             if (!modal) return;
             
             const isClosing = !modal.classList.contains('hidden');
             modal.classList.toggle("hidden");
             
-            if (!isClosing) {
+            // Ne réinitialiser que si on ouvre ET qu'on ne skip pas le reset
+            if (!isClosing && !skipReset) {
                 const form = modal.querySelector('form');
                 if (form) {
                     form.reset();
-                    // Reset ID caché pour employé
                     if (modalId === 'modal-employe') {
-                        document.getElementById('employe-id').value = '';
-                        document.getElementById('modal-title').textContent = 'Nouvel Employé';
-                        loadDepartmentsIntoSelect();
+                        resetEmployeForm();
                     }
                 }
             }
+        }
+
+        // ===== RÉINITIALISATION DU FORMULAIRE EMPLOYÉ =====
+        function resetEmployeForm() {
+            document.getElementById('employe-id').value = '';
+            document.getElementById('modal-title-text').textContent = 'Nouvel Employé';
+            document.getElementById('submit-btn-text').textContent = 'Enregistrer';
+            document.getElementById('edit-mode-indicator').classList.add('hidden');
+            document.getElementById('form-summary').classList.add('hidden');
+            loadDepartmentsIntoSelect();
         }
 
         function closeDeleteModal() {
             document.getElementById('deleteModal').classList.add('hidden');
         }
 
-        // ===== CRUD EMPLOYÉ (CORRIGÉ) =====
+        // ===== CRUD EMPLOYÉ - FORMULAIRE AMÉLIORÉ =====
         document.getElementById('form-employe')?.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const id = document.getElementById('employe-id').value;
             const deptId = document.getElementById('employe-departement').value;
 
-            // Construction des données
-            // NOTE : On NE met pas 'id' dans le body pour le update, il est dans l'URL
             const employeData = {
                 matricule: document.getElementById('employe-matricule').value.trim(),
                 nom: document.getElementById('employe-nom').value.trim(),
                 prenom: document.getElementById('employe-prenom').value.trim(),
                 fonction: document.getElementById('employe-fonction').value.trim(),
-                // L'objet département avec son ID est souvent requis par JPA
                 departement: { id: parseInt(deptId) },
-                entreprise: { id: 1 } //  nécessaire, sinon à retirer
+                entreprise: { id: 1 }
             };
 
             try {
@@ -512,7 +679,7 @@
                 
                 if (id) {
                     // MISE À JOUR (PUT)
-                    console.log("Mise à jour employé ID:", id);
+                    console.log("📝 Mise à jour employé ID:", id, employeData);
                     response = await fetch(`${CONFIG.API.employes}/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
@@ -520,7 +687,7 @@
                     });
                 } else {
                     // CRÉATION (POST)
-                    console.log("Création nouvel employé:", employeData);
+                    console.log("➕ Création nouvel employé:", employeData);
                     response = await fetch(CONFIG.API.employes, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -529,44 +696,85 @@
                 }
 
                 if (response.ok) {
-                    showToast(id ? 'Employé mis à jour ✓' : 'Employé créé ✓', 'success');
+                    showToast(id ? '✅ Employé mis à jour avec succès' : '✅ Employé créé avec succès', 'success');
                     toggleModal('modal-employe');
-                    await loadAllData(); // Recharge tout (Liste + Stats)
+                    await loadAllData();
                 } else {
                     const errorText = await response.text();
-                    console.error("Erreur API:", errorText);
-                    showToast('Erreur lors de l\'enregistrement', 'error');
+                    console.error("❌ Erreur API:", errorText);
+                    showToast('❌ Erreur lors de l\'enregistrement', 'error');
                 }
             } catch (error) {
-                console.error("Erreur catch:", error);
-                showToast('Erreur réseau', 'error');
+                console.error("❌ Erreur catch:", error);
+                showToast('❌ Erreur réseau', 'error');
             }
         });
 
+        // ===== ÉDITION EMPLOYÉ AMÉLIORÉE =====
         async function editEmploye(id) {
             try {
+                console.log("🔍 Chargement employé ID:", id);
+                
                 const response = await fetch(`${CONFIG.API.employes}/${id}`);
                 if (!response.ok) throw new Error('Employé introuvable');
                 
                 const emp = await response.json();
+                console.log("✅ Données chargées:", emp);
                 
-                document.getElementById('employe-id').value = emp.id;
+                // Remplir tous les champs du formulaire
+                document.getElementById('employe-id').value = emp.id || '';
                 document.getElementById('employe-matricule').value = emp.matricule || '';
                 document.getElementById('employe-nom').value = emp.nom || '';
                 document.getElementById('employe-prenom').value = emp.prenom || '';
                 document.getElementById('employe-fonction').value = emp.fonction || '';
                 
+                // Charger la liste des départements et sélectionner le bon
                 loadDepartmentsIntoSelect();
-                if (emp.departement?.id) {
-                    document.getElementById('employe-departement').value = emp.departement.id;
-                }
                 
-                document.getElementById('modal-title').textContent = 'Modifier Employé';
-                toggleModal('modal-employe');
+                // Attendre un court instant pour que les options soient chargées
+                setTimeout(() => {
+                    if (emp.departement?.id) {
+                        const deptSelect = document.getElementById('employe-departement');
+                        deptSelect.value = emp.departement.id;
+                        console.log("📍 Département sélectionné:", emp.departement.nom, "(ID:", emp.departement.id, ")");
+                    }
+                }, 100);
+                
+                // Afficher l'indicateur de mode édition
+                document.getElementById('modal-title-text').textContent = 'Modifier Employé';
+                document.getElementById('submit-btn-text').textContent = 'Mettre à jour';
+                document.getElementById('current-edit-id').textContent = emp.id;
+                document.getElementById('edit-mode-indicator').classList.remove('hidden');
+                
+                // Afficher le résumé
+                showFormSummary(emp);
+                
+                // Ouvrir la modale SANS réinitialiser (skipReset = true)
+                toggleModal('modal-employe', true);
+                
+                showToast('📝 Données chargées pour modification', 'success');
                 
             } catch (error) {
-                showToast(error.message, 'error');
+                console.error("❌ Erreur lors du chargement:", error);
+                showToast('❌ ' + error.message, 'error');
             }
+        }
+
+        // ===== AFFICHER UN RÉSUMÉ DES DONNÉES =====
+        function showFormSummary(emp) {
+            const summaryDiv = document.getElementById('form-summary');
+            const summaryList = document.getElementById('summary-list');
+            
+            const deptName = emp.departement?.nom || 'Non affecté';
+            
+            summaryList.innerHTML = `
+                <li>✓ Matricule: <strong>${emp.matricule}</strong></li>
+                <li>✓ Nom complet: <strong>${emp.prenom} ${emp.nom}</strong></li>
+                <li>✓ Fonction: <strong>${emp.fonction}</strong></li>
+                <li>✓ Département: <strong>${deptName}</strong></li>
+            `;
+            
+            summaryDiv.classList.remove('hidden');
         }
 
         // ===== CRUD DÉPARTEMENT =====
@@ -580,19 +788,19 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         nom: nom,
-                        entreprise: { id: 1 } // Si nécessaire
+                        entreprise: { id: 1 }
                     })
                 });
 
                 if (response.ok) {
-                    showToast('Département créé ✓', 'success');
+                    showToast('✅ Département créé avec succès', 'success');
                     toggleModal('modal-departement');
                     await loadAllData();
                 } else {
-                    showToast('Erreur lors de la création', 'error');
+                    showToast('❌ Erreur lors de la création', 'error');
                 }
             } catch (error) {
-                showToast('Erreur réseau', 'error');
+                showToast('❌ Erreur réseau', 'error');
             }
         });
 
@@ -612,40 +820,72 @@
                 });
 
                 if (response.ok) {
-                    showToast('Employé supprimé ✓', 'success');
+                    showToast('✅ Employé supprimé avec succès', 'success');
                     closeDeleteModal();
-                    await loadAllData(); // Recharge tout (Liste + Stats)
+                    await loadAllData();
                 } else {
-                    showToast('Erreur lors de la suppression', 'error');
+                    showToast('❌ Erreur lors de la suppression', 'error');
                 }
             } catch (error) {
-                showToast('Erreur réseau', 'error');
+                showToast('❌ Erreur réseau', 'error');
             }
         }
 
-        // ===== RECHERCHE =====
+        // ===== RECHERCHE AMÉLIORÉE ET CORRIGÉE =====
         let searchTimeout;
-        document.getElementById('search-input')?.addEventListener('input', function(e) {
-            const query = e.target.value.toLowerCase().trim();
+        
+        function performSearch() {
+            const searchInput = document.getElementById('search-input');
+            const query = searchInput.value.toLowerCase().trim();
+            const clearBtn = document.getElementById('clear-search');
             
-            clearTimeout(searchTimeout);
+            // Afficher/masquer le bouton clear
+            clearBtn.classList.toggle('hidden', query === '');
             
-            searchTimeout = setTimeout(() => {
-                const filtered = query === '' ? allEmployes :
-                    allEmployes.filter(emp => 
+            // Filtrer par recherche textuelle
+            let filtered = query === '' ? allEmployes :
+                allEmployes.filter(emp => {
+                    // Convertir le matricule en string pour la recherche
+                    const matriculeStr = emp.matricule ? String(emp.matricule).toLowerCase() : '';
+                    
+                    return (
                         emp.nom?.toLowerCase().includes(query) ||
                         emp.prenom?.toLowerCase().includes(query) ||
-                        emp.matricule?.toLowerCase().includes(query) ||
+                        matriculeStr.includes(query) ||
                         emp.fonction?.toLowerCase().includes(query) ||
                         emp.departement?.nom?.toLowerCase().includes(query)
                     );
-                renderTable(filtered);
+                });
+            
+            // Appliquer le filtre de département si actif
+            if (currentDepartmentFilter) {
+                filtered = filtered.filter(emp => 
+                    emp.departement?.nom === currentDepartmentFilter
+                );
+            }
+            
+            filteredEmployes = filtered;
+            renderTable(filtered);
+        }
+
+        document.getElementById('search-input')?.addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                performSearch();
             }, 300);
         });
 
+        function clearSearch() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('clear-search').classList.add('hidden');
+            performSearch();
+        }
+
         // ===== INITIALISATION =====
         document.addEventListener('DOMContentLoaded', async () => {
+            console.log("🚀 Initialisation de l'application...");
             await loadAllData();
+            console.log("✅ Application prête!");
         });
     </script>
 </body>
