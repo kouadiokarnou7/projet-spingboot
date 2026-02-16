@@ -1,64 +1,107 @@
 package springdemo.springdemo.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import springdemo.springdemo.model.Employe;
 import springdemo.springdemo.repository.EmployeRepository;
-import java.util.List;
-import java.util.Optional;
 
 @Service
+@Transactional
 public class EmployeServiceImpl implements EmployeService {
-    
-    @Autowired
-    private EmployeRepository employeRepository;
-    
+
+    private final EmployeRepository employeRepository;
+
+    public EmployeServiceImpl(EmployeRepository employeRepository) {
+        this.employeRepository = employeRepository;
+    }
+
+    // ACCÈS : EMPLOYÉ ET ADMIN
     @Override
     public List<Employe> findAll() {
         return employeRepository.findAll();
     }
-    
+
+    // ACCÈS : EMPLOYÉ ET ADMIN (Recherche filtrée)
     @Override
-    public Employe findOne(Integer matricule) {
-        Optional<Employe> employe = employeRepository.findById(matricule);
-        return employe.orElseThrow(() -> 
-            new RuntimeException("Employé not found with matricule: " + matricule)
-        );
+    public List<Employe> searchByNom(String nom) {
+        return employeRepository.findByNomContainingIgnoreCase(nom);
     }
-    
+
+
+    @Override
+    public List <Employe> searchByPrenom(String prenom) {
+        return employeRepository.findByPrenomContainingIgnoreCase(prenom);
+    }
+
+    @Override
+    public List<Employe> searchByDepartementId(Long departementId) {
+        return employeRepository.findByDepartementId(departementId);
+    }
+
+    @Override
+    public Employe findOne(Long id) {
+        return employeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Employé introuvable avec l'ID : " + id));
+    }
+
+    @Override
+    public Employe findByMatricule(Integer matricule) {
+        return employeRepository.findByMatricule(matricule)
+                .orElseThrow(() -> new RuntimeException("Matricule " + matricule + " inexistant"));
+    }
+
+        
+    // ACCÈS : ADMIN UNIQUEMENT (avec conditions)
     @Override
     public Employe save(Employe employe) {
-        // Validation métier
-        if (employe.getmatricule() == null) {
-            throw new RuntimeException("Matricule is required");
+        // CONDITION 1 : Vérifier si l'entreprise et le département sont fournis
+        if (employe.getEntreprise() == null || employe.getDepartement() == null) {
+            throw new RuntimeException("Erreur : Un employé doit être lié à une entreprise et un département.");
         }
-        if (employe.getNom() == null || employe.getNom().isEmpty()) {
-            throw new RuntimeException("Nom is required");
+
+        // CONDITION 2 : Vérifier si le matricule existe déjà en base
+        if (employeRepository.existsByMatricule(employe.getMatricule())) {
+            throw new RuntimeException("Le matricule " + employe.getMatricule() + " est déjà utilisé.");
         }
-        
-        // Note: Repository currently does not expose a findBymatricule method.
-        // Uniqueness check would normally be done via a query method or unique constraint.
+
         return employeRepository.save(employe);
     }
-    
+
+    // ACCÈS : ADMIN UNIQUEMENT
+    //
     @Override
-    public Employe update(Integer id, Employe employeDetails) {
-        Employe employe = findOne(id);
-        
-        if (employeDetails.getmatricule() != null) {
-            employe.setMatricule(employeDetails.getmatricule());
+    public Employe update(Long id, Employe employe) {
+    Employe existing = findOne(id);
+
+    existing.setNom(employe.getNom());
+    existing.setPrenom(employe.getPrenom());
+    existing.setFonction(employe.getFonction());
+
+    // Ne vérifier l'unicité du matricule que si c'est différent
+    if (!existing.getMatricule().equals(employe.getMatricule())) {
+        if (employeRepository.existsByMatricule(employe.getMatricule())) {
+            throw new RuntimeException("Le matricule " + employe.getMatricule() + " est déjà utilisé.");
         }
-        
-        if (employeDetails.getNom() != null && !employeDetails.getNom().isEmpty()) {
-            employe.setNom(employeDetails.getNom());
-        }
-        
-        return employeRepository.save(employe);
+        existing.setMatricule(employe.getMatricule());
     }
-    
+
+    existing.setDepartement(employe.getDepartement());
+    existing.setEntreprise(employe.getEntreprise());
+
+    return employeRepository.save(existing);
+}
+
+    //
+
+    // ACCÈS : ADMIN UNIQUEMENT
     @Override
-    public void delete(Integer id) {
-        findOne(id); // Vérifier que l'employé existe
+    public void delete(Long id) {
+        if (!employeRepository.existsById(id)) {
+            throw new RuntimeException("Impossible de supprimer : l'employé n'existe pas.");
+        }
         employeRepository.deleteById(id);
     }
 }

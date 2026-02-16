@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Gestion RH - EvoCorp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet"/>
+    <style>
+        /* Animations et Styles Visuels */
+        tr { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% center; }
+            100% { background-position: 200% center; }
+        }
+        .department-badge {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            background-size: 200% 100%;
+        }
+        .department-badge:hover { animation: shimmer 2s infinite; }
+        .action-btn { transition: all 0.2s ease; }
+        .action-btn:hover { transform: translateY(-2px); }
+        
+        /* Animation pour le compteur de résultats */
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .search-counter {
+            animation: slideDown 0.3s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-800">
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-[100] flex flex-col gap-2"></div>
+
+    <!-- Navigation -->
+    <nav class="bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm border-b border-slate-200 px-8 py-4 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="bg-indigo-600 p-2 rounded-lg shadow-indigo-200 shadow-md">
+                <i class="fa-solid fa-users-gear text-white text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-slate-800 tracking-tight">
+                    EvoCorp - <span class="text-indigo-600" sec:authentication="name">Utilisateur</span>
+                </h1>
+                <p class="text-xs font-medium">
+                    <span sec:authorize="hasRole('ADMIN')" class="inline-flex items-center px-2 py-0.5 rounded bg-red-100 text-red-700 border border-red-200">
+                        <i class="fa-solid fa-crown mr-1"></i>ADMINISTRATEUR
+                    </span>
+                </p>
+            </div>
+        </div>
+        
+        <form th:action="@{/logout}" method="post">
+            <button type="submit" class="flex items-center gap-2 px-4 py-2 rounded-full bg-red-50 text-red-600 text-sm font-semibold hover:bg-red-100 transition-all border border-transparent hover:border-red-200">
+                <i class="fa-solid fa-power-off"></i>
+                <span>Déconnexion</span>
+            </button>
+        </form>
+    </nav>
+
+    <main class="max-w-7xl mx-auto mt-10 px-6 pb-12">
+        
+        <!-- 1. SECTION STATISTIQUES (EN HAUT) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- Total Employés -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm font-medium mb-1">Total Employés</p>
+                        <p id="stat-total" class="text-3xl font-bold text-slate-800">0</p>
+                    </div>
+                    <div class="bg-indigo-50 p-3 rounded-xl">
+                        <i class="fa-solid fa-users text-indigo-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Total Départements (Basé sur la liste DB) -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm font-medium mb-1">Départements</p>
+                        <p id="stat-departments" class="text-3xl font-bold text-slate-800">0</p>
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-xl">
+                        <i class="fa-solid fa-building text-green-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Fonctions Uniques -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm font-medium mb-1">Fonctions</p>
+                        <p id="stat-functions" class="text-3xl font-bold text-slate-800">0</p>
+                    </div>
+                    <div class="bg-purple-50 p-3 rounded-xl">
+                        <i class="fa-solid fa-briefcase text-purple-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. SECTION CONTROLES & RECHERCHE (AU MILIEU) -->
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <div class="text-center md:text-left w-full md:w-auto">
+                <h2 class="text-2xl font-black text-slate-900">Annuaire des employés</h2>
+                <p class="text-slate-500 text-sm">Gérez vos équipes et vos départements.</p>
+            </div>
+
+            <!-- Boutons Admin -->
+            <div id="admin-controls" class="flex flex-wrap justify-center md:justify-end gap-3 w-full md:w-auto" sec:authorize="hasRole('ADMIN')">
+                <button onclick="toggleModal('modal-departement')"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all shadow-lg hover:shadow-green-200/50">
+                    <i class="fa-solid fa-building"></i>
+                    Nouveau Département
+                </button>
+                <button onclick="toggleModal('modal-employe')"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg hover:shadow-indigo-200/50">
+                    <i class="fa-solid fa-plus"></i>
+                    Nouvel Employé
+                </button>
+            </div>
+        </div>
+
+        <!-- ========== BARRE DE RECHERCHE AMÉLIORÉE - CORRIGÉE ========== -->
+        <div class="mb-8">
+            <div class="bg-white rounded-2xl p-6 border-2 border-slate-200 shadow-md">
+                <!-- Champ de recherche principal avec conteneur relatif -->
+                <div class="relative mb-4">
+                    <input type="text" 
+                           id="search-input" 
+                           placeholder=" Rechercher par nom, prénom, matricule, fonction ou département..." 
+                           class="w-full pl-14 pr-12 py-4 rounded-xl border-2 border-slate-200 bg-slate-50 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all text-base font-medium" />
+                    <!-- Bouton clear -->
+                    <button id="clear-search" 
+                            class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition-colors hidden"
+                            onclick="clearSearch()">
+                        <i class="fa-solid fa-times-circle text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Compteur de résultats et filtres rapides -->
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <!-- Compteur de résultats -->
+                    <div id="search-results-info" class="search-counter flex items-center gap-2 text-sm">
+                        <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200">
+                            <i class="fa-solid fa-filter"></i>
+                            <span id="results-count">0</span> résultat(s)
+                        </span>
+                        <span id="search-query-display" class="text-slate-500 italic hidden">
+                            pour "<span id="current-query" class="font-semibold text-slate-700"></span>"
+                        </span>
+                    </div>
+
+                    <!-- Filtres rapides par département -->
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="filterByDepartment('')" 
+                                class="filter-dept-btn px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-300 transition-all active">
+                            <i class="fa-solid fa-globe mr-1"></i>Tous
+                        </button>
+                        <div id="department-filters" class="flex flex-wrap gap-2">
+                            <!-- Les filtres de département seront ajoutés dynamiquement ici -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. LISTE DES EMPLOYÉS (EN BAS) -->
+        <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="bg-gradient-to-r from-slate-50 to-slate-100/50 border-b border-slate-200">
+                        <th class="px-8 py-5 text-sm font-bold text-slate-500 uppercase tracking-widest">
+                            <i class="fa-solid fa-hashtag mr-2 text-slate-400"></i>Matricule
+                        </th>
+                        <th class="px-8 py-5 text-sm font-bold text-slate-500 uppercase tracking-widest">
+                            <i class="fa-solid fa-user mr-2 text-slate-400"></i>Identité
+                        </th>
+                        <th class="px-8 py-5 text-sm font-bold text-slate-500 uppercase tracking-widest">
+                            <i class="fa-solid fa-briefcase mr-2 text-slate-400"></i>Fonction
+                        </th>
+                        <th class="px-8 py-5 text-sm font-bold text-slate-500 uppercase tracking-widest">
+                            <i class="fa-solid fa-building mr-2 text-slate-400"></i>Département
+                        </th>
+                        <th class="px-8 py-5 text-sm font-bold text-slate-500 uppercase tracking-widest text-center">
+                            <i class="fa-solid fa-cog mr-2 text-slate-400"></i>Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="employes-tbody" class="divide-y divide-slate-50">
+                    <tr>
+                        <td colspan="5" class="px-8 py-12 text-center">
+                            <div class="flex flex-col items-center gap-3">
+                                <i class="fa-solid fa-circle-notch fa-spin text-indigo-500 text-4xl"></i>
+                                <p class="text-slate-400 font-medium">Chargement de l'annuaire...</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <!-- Empty State -->
+            <div id="empty-state" class="hidden p-12 text-center">
+                <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-50 mb-4">
+                    <i class="fa-solid fa-user-slash text-slate-300 text-3xl"></i>
+                </div>
+                <p class="text-slate-600 font-bold text-lg mb-1">Aucun employé trouvé</p>
+                <p class="text-slate-400 text-sm">Essayez de modifier vos critères de recherche</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- ========== MODAL AJOUT/MODIF EMPLOYÉ AMÉLIORÉ ========== -->
+    <div id="modal-employe" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="modal-title" class="text-xl font-bold text-gray-800">
+                    <i class="fa-solid fa-user-plus mr-2 text-indigo-600"></i>
+                    <span id="modal-title-text">Nouvel Employé</span>
+                </h3>
+                <button onclick="toggleModal('modal-employe')" class="text-gray-400 hover:text-gray-600 transition">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- Indicateur de mode (Création/Modification) -->
+            <div id="edit-mode-indicator" class="hidden mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div class="flex items-center gap-2 text-amber-700">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    <span class="text-sm font-semibold">Mode modification - ID: <span id="current-edit-id" class="font-mono"></span></span>
+                </div>
+            </div>
+
+            <form id="form-employe" class="space-y-4">
+                <input type="hidden" id="employe-id">
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fa-solid fa-hashtag mr-1 text-gray-400"></i>
+                        Matricule *
+                    </label>
+                    <input type="text" 
+                           id="employe-matricule" 
+                           required
+                           placeholder="ertrez un nombre ex:01"
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                    <p class="text-xs text-gray-500 mt-1">Le matricule doit être unique</p>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fa-solid fa-user mr-1 text-gray-400"></i>
+                            Nom *
+                        </label>
+                        <input type="text" 
+                               id="employe-nom" 
+                               required
+                               placeholder="Nom de famille"
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            <i class="fa-solid fa-user mr-1 text-gray-400"></i>
+                            Prénom *
+                        </label>
+                        <input type="text" 
+                               id="employe-prenom" 
+                               required
+                               placeholder="Prénom"
+                               class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fa-solid fa-briefcase mr-1 text-gray-400"></i>
+                        Fonction *
+                    </label>
+                    <input type="text" 
+                           id="employe-fonction" 
+                           required
+                           placeholder="Ex: Développeur, Manager, etc."
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fa-solid fa-building mr-1 text-gray-400"></i>
+                        Département *
+                    </label>
+                    <select id="employe-departement" 
+                            required
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                        <option value="">Sélectionnez un département</option>
+                    </select>
+                </div>
+
+                <!-- Résumé des données avant enregistrement -->
+                <div id="form-summary" class="hidden p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p class="text-sm font-semibold text-blue-800 mb-2">
+                        <i class="fa-solid fa-info-circle mr-1"></i>Résumé des modifications :
+                    </p>
+                    <ul class="text-xs text-blue-700 space-y-1" id="summary-list">
+                        <!-- Sera rempli dynamiquement -->
+                    </ul>
+                </div>
+                
+                <div class="flex space-x-3 pt-4 border-t border-gray-200">
+                    <button type="submit" 
+                            class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition shadow-lg hover:shadow-blue-200">
+                        <i class="fa fa-save mr-2"></i>
+                        <span id="submit-btn-text">Enregistrer</span>
+                    </button>
+                    <button type="button" 
+                            onclick="toggleModal('modal-employe')"
+                            class="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-300 transition">
+                        <i class="fa fa-times mr-2"></i>Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL AJOUT DÉPARTEMENT -->
+    <div id="modal-departement" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 text-gray-800">Nouveau Département</h3>
+            <form id="form-departement" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Nom du département *</label>
+                    <input type="text" id="departement-nom" required
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition">
+                </div>
+                <div class="flex space-x-3 pt-2">
+                    <button type="submit" 
+                            class="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition">
+                        <i class="fa fa-check mr-2"></i>Créer
+                    </button>
+                    <button type="button" onclick="toggleModal('modal-departement')"
+                            class="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-300 transition">
+                        <i class="fa fa-times mr-2"></i>Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMATION SUPPRESSION -->
+    <div id="deleteModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+            <div class="text-center">
+                <div class="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                    <i class="fa-solid fa-trash text-red-600 text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">Confirmer la suppression</h3>
+                <p class="text-slate-600 mb-6">Êtes-vous sûr de vouloir supprimer cet employé ? Cette action est irréversible.</p>
+                <div class="flex gap-3">
+                    <button onclick="closeDeleteModal()" class="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200 transition">
+                        Annuler
+                    </button>
+                    <button id="confirmDeleteBtn" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition">
+                        Supprimer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== CONFIGURATION GLOBALE =====
+        const CONFIG = {
+            API: {
+                employes: '/api/employes',
+                departements: '/api/departements'
+            }
+        };
+
+        // ===== CACHE =====
+        let allEmployes = [];
+        let allDepartements = [];
+        let filteredEmployes = []; // Pour stocker les résultats filtrés
+        let currentDepartmentFilter = ''; // Filtre de département actif
+
+        // ===== DÉTECTION DU RÔLE ADMIN =====
+        const isAdmin = document.getElementById('admin-controls') !== null;
+        console.log('🔐 Mode Admin actif:', isAdmin);
+
+        // ===== COULEURS DÉPARTEMENTS =====
+        const departmentColors = [
+            { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+            { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
+            { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+            { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
+            { bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200' },
+            { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' }
+        ];
+        const departmentColorMap = new Map();
+
+        function getDepartmentColor(deptName) {
+            if (!deptName) return departmentColors[0];
+            if (!departmentColorMap.has(deptName)) {
+                const index = departmentColorMap.size % departmentColors.length;
+                departmentColorMap.set(deptName, departmentColors[index]);
+            }
+            return departmentColorMap.get(deptName);
+        }
+
+        // ===== TOASTS =====
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'success' ? 'bg-green-600' : 'bg-red-600';
+            const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+            toast.className = `${bgClass} text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 transform transition-all duration-300 translate-x-full opacity-0`;
+            toast.innerHTML = `<i class="fa ${icon} text-lg"></i><span class="font-medium">${message}</span>`;
+            container.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.remove('translate-x-full', 'opacity-0'));
+            setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // ===== CHARGEMENT DES DONNÉES =====
+        async function loadAllData() {
+            try {
+                console.log('📡 Chargement des données...');
+                const [empRes, deptRes] = await Promise.allSettled([
+                    fetch(CONFIG.API.employes).then(r => r.json()),
+                    fetch(CONFIG.API.departements).then(r => r.json())
+                ]);
+
+                // Mise à jour des variables globales
+                allEmployes = empRes.status === 'fulfilled' ? empRes.value : [];
+                allDepartements = deptRes.status === 'fulfilled' ? deptRes.value : [];
+                filteredEmployes = allEmployes; // Initialiser avec tous les employés
+
+                console.log(`✅ ${allEmployes.length} employés, ${allDepartements.length} départements`);
+
+                renderTable(allEmployes);
+                updateStatistics();
+                loadDepartmentsIntoSelect();
+                createDepartmentFilters(); // Créer les filtres rapides
+
+            } catch (error) {
+                console.error('❌ Erreur chargement:', error);
+                showToast('Erreur de chargement des données', 'error');
+            }
+        }
+
+        // ===== STATISTIQUES =====
+        function updateStatistics() {
+            document.getElementById("stat-total").textContent = allEmployes.length;
+            document.getElementById("stat-departments").textContent = allDepartements.length;
+            
+            const uniqueFunctions = new Set(
+                allEmployes
+                    .filter(emp => emp.fonction && emp.fonction.trim() !== '')
+                    .map(emp => emp.fonction.trim())
+            );
+            document.getElementById("stat-functions").textContent = uniqueFunctions.size;
+        }
+
+        // ===== CRÉATION DES FILTRES DE DÉPARTEMENT =====
+        function createDepartmentFilters() {
+            const container = document.getElementById('department-filters');
+            container.innerHTML = '';
+            
+            allDepartements.forEach(dept => {
+                const color = getDepartmentColor(dept.nom);
+                const count = allEmployes.filter(emp => emp.departement?.id === dept.id).length;
+                
+                const btn = document.createElement('button');
+                btn.onclick = () => filterByDepartment(dept.nom);
+                btn.className = `filter-dept-btn px-3 py-1.5 text-xs font-bold rounded-lg ${color.bg} ${color.text} border ${color.border} hover:opacity-80 transition-all`;
+                btn.innerHTML = `<i class="fa-solid fa-building mr-1"></i>${dept.nom} (${count})`;
+                btn.dataset.department = dept.nom;
+                
+                container.appendChild(btn);
+            });
+        }
+
+        // ===== FILTRE PAR DÉPARTEMENT =====
+        function filterByDepartment(deptName) {
+            currentDepartmentFilter = deptName;
+            
+            // Mettre à jour l'apparence des boutons
+            document.querySelectorAll('.filter-dept-btn').forEach(btn => {
+                btn.classList.remove('active', 'ring-2', 'ring-offset-2');
+                if ((deptName === '' && btn.textContent.includes('Tous')) || 
+                    btn.dataset.department === deptName) {
+                    btn.classList.add('active', 'ring-2', 'ring-offset-2');
+                }
+            });
+            
+            // Appliquer le filtre
+            performSearch();
+        }
+
+        // ===== RENDU DU TABLEAU =====
+        function renderTable(data) {
+            const tbody = document.getElementById('employes-tbody');
+            const emptyState = document.getElementById('empty-state');
+            
+            tbody.innerHTML = '';
+
+            if (!data || data.length === 0) {
+                emptyState.classList.remove('hidden');
+                updateResultsCounter(0);
+                return;
+            }
+            emptyState.classList.add('hidden');
+            updateResultsCounter(data.length);
+
+            data.forEach((emp, index) => {
+                const matricule = emp.matricule || 'N/A';
+                const nom = emp.nom || '';
+                const prenom = emp.prenom || '';
+                const fonction = emp.fonction || 'Non spécifié';
+                const departement = emp.departement?.nom || 'Non affecté';
+                const fullName = `${prenom} ${nom}`.trim() || 'Inconnu';
+                const initials = ((prenom ? prenom.charAt(0) : "N") + (nom ? nom.charAt(0) : "A")).toUpperCase();
+                const deptColor = getDepartmentColor(departement);
+
+                let actionsHtml = '';
+                if (isAdmin) {
+                    actionsHtml = `
+                        <button onclick="editEmploye(${emp.id})" 
+                                class="action-btn p-2 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-200" title="Modifier">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button onclick="confirmDelete(${emp.id}, '${fullName}')" 
+                                class="action-btn p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200" title="Supprimer">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    `;
+                } else {
+                    actionsHtml = '<span class="text-gray-400 text-xs italic"><i class="fa fa-lock mr-1"></i>Lecture seule</span>';
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gradient-to-r hover:from-slate-50/50 hover:to-transparent transition-all duration-200 group border-b border-slate-50 last:border-0';
+                tr.style.animationDelay = `${index * 0.05}s`;
+                
+                tr.innerHTML = `
+                    <td class="px-8 py-6">
+                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg bg-slate-50 text-slate-700 font-mono text-sm font-bold border border-slate-200 shadow-sm group-hover:bg-indigo-50 group-hover:text-indigo-700 group-hover:border-indigo-200 transition-all">
+                            <i class="fa-solid fa-hashtag text-xs mr-1.5 opacity-50"></i>${matricule}
+                        </span>
+                    </td>
+                    <td class="px-8 py-6">
+                        <div class="flex items-center gap-4">
+                            <div class="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-lg shadow-lg shadow-indigo-200/50 ring-2 ring-white group-hover:scale-110 transition-transform">
+                                ${initials}
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-slate-900 font-bold text-base leading-tight">${fullName}</span>
+                                <div class="flex items-center gap-1.5 mt-1">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                                    <span class="text-xs text-slate-400 font-medium tracking-wide uppercase">Actif</span>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-8 py-6">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-briefcase text-slate-400 text-sm"></i>
+                            <span class="text-slate-600 font-medium">${fonction}</span>
+                        </div>
+                    </td>
+                    <td class="px-8 py-6">
+                        <span class="department-badge inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ${deptColor.bg} ${deptColor.text} border ${deptColor.border} font-bold text-sm shadow-sm transition-all group-hover:scale-105">
+                            <i class="fa-solid fa-building text-xs"></i>
+                            <span>${departement}</span>
+                        </span>
+                    </td>
+                    <td class="px-8 py-6">
+                        <div class="flex items-center justify-center gap-2">
+                            ${actionsHtml}
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ===== MISE À JOUR DU COMPTEUR DE RÉSULTATS =====
+        function updateResultsCounter(count) {
+            document.getElementById('results-count').textContent = count;
+            
+            const searchInput = document.getElementById('search-input');
+            const query = searchInput.value.trim();
+            const queryDisplay = document.getElementById('search-query-display');
+            const currentQuery = document.getElementById('current-query');
+            
+            if (query) {
+                queryDisplay.classList.remove('hidden');
+                currentQuery.textContent = query;
+            } else {
+                queryDisplay.classList.add('hidden');
+            }
+        }
+
+        // ===== DÉPARTEMENTS DANS LE SELECT =====
+        function loadDepartmentsIntoSelect() {
+            const select = document.getElementById('employe-departement');
+            if (!select) return;
+            
+            select.innerHTML = '<option value="">Sélectionnez un département</option>';
+            allDepartements.forEach(d => {
+                select.innerHTML += `<option value="${d.id}">${d.nom}</option>`;
+            });
+        }
+
+        // ===== MODALES =====
+        function toggleModal(modalId, skipReset = false) {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+            
+            const isClosing = !modal.classList.contains('hidden');
+            modal.classList.toggle("hidden");
+            
+            // Ne réinitialiser que si on ouvre ET qu'on ne skip pas le reset
+            if (!isClosing && !skipReset) {
+                const form = modal.querySelector('form');
+                if (form) {
+                    form.reset();
+                    if (modalId === 'modal-employe') {
+                        resetEmployeForm();
+                    }
+                }
+            }
+        }
+
+        // ===== RÉINITIALISATION DU FORMULAIRE EMPLOYÉ =====
+        function resetEmployeForm() {
+            document.getElementById('employe-id').value = '';
+            document.getElementById('modal-title-text').textContent = 'Nouvel Employé';
+            document.getElementById('submit-btn-text').textContent = 'Enregistrer';
+            document.getElementById('edit-mode-indicator').classList.add('hidden');
+            document.getElementById('form-summary').classList.add('hidden');
+            loadDepartmentsIntoSelect();
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.add('hidden');
+        }
+
+        // ===== CRUD EMPLOYÉ - FORMULAIRE AMÉLIORÉ =====
+        document.getElementById('form-employe')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const id = document.getElementById('employe-id').value;
+            const deptId = document.getElementById('employe-departement').value;
+
+            const employeData = {
+                matricule: document.getElementById('employe-matricule').value.trim(),
+                nom: document.getElementById('employe-nom').value.trim(),
+                prenom: document.getElementById('employe-prenom').value.trim(),
+                fonction: document.getElementById('employe-fonction').value.trim(),
+                departement: { id: parseInt(deptId) },
+                entreprise: { id: 1 }
+            };
+
+            try {
+                let response;
+                
+                if (id) {
+                    // MISE À JOUR (PUT)
+                    console.log("📝 Mise à jour employé ID:", id, employeData);
+                    response = await fetch(`${CONFIG.API.employes}/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(employeData)
+                    });
+                } else {
+                    // CRÉATION (POST)
+                    console.log("➕ Création nouvel employé:", employeData);
+                    response = await fetch(CONFIG.API.employes, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(employeData)
+                    });
+                }
+
+                if (response.ok) {
+                    showToast(id ? '✅ Employé mis à jour avec succès' : '✅ Employé créé avec succès', 'success');
+                    toggleModal('modal-employe');
+                    await loadAllData();
+                } else {
+                    const errorText = await response.text();
+                    console.error("❌ Erreur API:", errorText);
+                    showToast('❌ Erreur lors de l\'enregistrement', 'error');
+                }
+            } catch (error) {
+                console.error("❌ Erreur catch:", error);
+                showToast('❌ Erreur réseau', 'error');
+            }
+        });
+
+        // ===== ÉDITION EMPLOYÉ AMÉLIORÉE =====
+        async function editEmploye(id) {
+            try {
+                console.log("🔍 Chargement employé ID:", id);
+                
+                const response = await fetch(`${CONFIG.API.employes}/${id}`);
+                if (!response.ok) throw new Error('Employé introuvable');
+                
+                const emp = await response.json();
+                console.log("✅ Données chargées:", emp);
+                
+                // Remplir tous les champs du formulaire
+                document.getElementById('employe-id').value = emp.id || '';
+                document.getElementById('employe-matricule').value = emp.matricule || '';
+                document.getElementById('employe-nom').value = emp.nom || '';
+                document.getElementById('employe-prenom').value = emp.prenom || '';
+                document.getElementById('employe-fonction').value = emp.fonction || '';
+                
+                // Charger la liste des départements et sélectionner le bon
+                loadDepartmentsIntoSelect();
+                
+                // Attendre un court instant pour que les options soient chargées
+                setTimeout(() => {
+                    if (emp.departement?.id) {
+                        const deptSelect = document.getElementById('employe-departement');
+                        deptSelect.value = emp.departement.id;
+                        console.log("📍 Département sélectionné:", emp.departement.nom, "(ID:", emp.departement.id, ")");
+                    }
+                }, 100);
+                
+                // Afficher l'indicateur de mode édition
+                document.getElementById('modal-title-text').textContent = 'Modifier Employé';
+                document.getElementById('submit-btn-text').textContent = 'Mettre à jour';
+                document.getElementById('current-edit-id').textContent = emp.id;
+                document.getElementById('edit-mode-indicator').classList.remove('hidden');
+                
+                // Afficher le résumé
+                showFormSummary(emp);
+                
+                // Ouvrir la modale SANS réinitialiser (skipReset = true)
+                toggleModal('modal-employe', true);
+                
+                showToast('📝 Données chargées pour modification', 'success');
+                
+            } catch (error) {
+                console.error("❌ Erreur lors du chargement:", error);
+                showToast('❌ ' + error.message, 'error');
+            }
+        }
+
+        // ===== AFFICHER UN RÉSUMÉ DES DONNÉES =====
+        function showFormSummary(emp) {
+            const summaryDiv = document.getElementById('form-summary');
+            const summaryList = document.getElementById('summary-list');
+            
+            const deptName = emp.departement?.nom || 'Non affecté';
+            
+            summaryList.innerHTML = `
+                <li>✓ Matricule: <strong>${emp.matricule}</strong></li>
+                <li>✓ Nom complet: <strong>${emp.prenom} ${emp.nom}</strong></li>
+                <li>✓ Fonction: <strong>${emp.fonction}</strong></li>
+                <li>✓ Département: <strong>${deptName}</strong></li>
+            `;
+            
+            summaryDiv.classList.remove('hidden');
+        }
+
+        // ===== CRUD DÉPARTEMENT =====
+        document.getElementById('form-departement')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nom = document.getElementById('departement-nom').value.trim();
+            
+            try {
+                const response = await fetch(CONFIG.API.departements, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        nom: nom,
+                        entreprise: { id: 1 }
+                    })
+                });
+
+                if (response.ok) {
+                    showToast('✅ Département créé avec succès', 'success');
+                    toggleModal('modal-departement');
+                    await loadAllData();
+                } else {
+                    showToast('❌ Erreur lors de la création', 'error');
+                }
+            } catch (error) {
+                showToast('❌ Erreur réseau', 'error');
+            }
+        });
+
+        // ===== SUPPRESSION =====
+        let employeToDelete = null;
+
+        function confirmDelete(id, name) {
+            employeToDelete = id;
+            document.getElementById('deleteModal').classList.remove('hidden');
+            document.getElementById('confirmDeleteBtn').onclick = () => deleteEmploye(id);
+        }
+
+        async function deleteEmploye(id) {
+            try {
+                const response = await fetch(`${CONFIG.API.employes}/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    showToast('✅ Employé supprimé avec succès', 'success');
+                    closeDeleteModal();
+                    await loadAllData();
+                } else {
+                    showToast('❌ Erreur lors de la suppression', 'error');
+                }
+            } catch (error) {
+                showToast('❌ Erreur réseau', 'error');
+            }
+        }
+
+        // ===== RECHERCHE AMÉLIORÉE ET CORRIGÉE =====
+        let searchTimeout;
+        
+        function performSearch() {
+            const searchInput = document.getElementById('search-input');
+            const query = searchInput.value.toLowerCase().trim();
+            const clearBtn = document.getElementById('clear-search');
+            
+            // Afficher/masquer le bouton clear
+            clearBtn.classList.toggle('hidden', query === '');
+            
+            // Filtrer par recherche textuelle
+            let filtered = query === '' ? allEmployes :
+                allEmployes.filter(emp => {
+                    // Convertir le matricule en string pour la recherche
+                    const matriculeStr = emp.matricule ? String(emp.matricule).toLowerCase() : '';
+                    
+                    return (
+                        emp.nom?.toLowerCase().includes(query) ||
+                        emp.prenom?.toLowerCase().includes(query) ||
+                        matriculeStr.includes(query) ||
+                        emp.fonction?.toLowerCase().includes(query) ||
+                        emp.departement?.nom?.toLowerCase().includes(query)
+                    );
+                });
+            
+            // Appliquer le filtre de département si actif
+            if (currentDepartmentFilter) {
+                filtered = filtered.filter(emp => 
+                    emp.departement?.nom === currentDepartmentFilter
+                );
+            }
+            
+            filteredEmployes = filtered;
+            renderTable(filtered);
+        }
+
+        document.getElementById('search-input')?.addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                performSearch();
+            }, 300);
+        });
+
+        function clearSearch() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('clear-search').classList.add('hidden');
+            performSearch();
+        }
+
+        // ===== INITIALISATION =====
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log("🚀 Initialisation de l'application...");
+            await loadAllData();
+            console.log("✅ Application prête!");
+        });
+    </script>
+</body>
+</html>
